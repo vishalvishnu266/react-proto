@@ -1,0 +1,72 @@
+/*
+ * Semantic, theme-aware utilities.
+ *
+ * Each utility bakes in BOTH the light and dark styles, so components
+ * never need to write `foo-x dark:foo-y` pairs. To retheme the app,
+ * edit only the values here (or the palettes in `theme.css`).
+ *
+ * Backgrounds : bg-surface, bg-surface-muted, bg-surface-strong
+ * Borders     : border-subtle, border-strong
+ * Text        : text-default, text-muted, text-subtle
+ * Brand       : text-primary, bg-primary, bg-primary-soft, text-primary-on-soft
+ */
+
+/* Backgrounds */
+@utility bg-surface {
+  background-color: var(--color-white);
+  .dark & { background-color: var(--color-neutral-900); }
+}
+@utility bg-surface-muted {
+  background-color: var(--color-neutral-100);
+  .dark & { background-color: var(--color-neutral-800); }
+}
+@utility bg-surface-strong {
+  background-color: var(--color-neutral-300);
+  .dark & { background-color: var(--color-neutral-700); }
+}
+
+/* Borders */
+@utility border-subtle {
+  border-color: var(--color-neutral-200);
+  .dark & { border-color: var(--color-neutral-800); }
+}
+@utility border-strong {
+  border-color: var(--color-neutral-200);
+  .dark & { border-color: var(--color-neutral-700); }
+}
+
+/* Text */
+@utility text-default {
+  color: var(--color-neutral-900);
+  .dark & { color: var(--color-white); }
+}
+@utility text-muted {
+  color: var(--color-neutral-700);
+  .dark & { color: var(--color-neutral-300); }
+}
+@utility text-subtle {
+  color: var(--color-neutral-500);
+  .dark & { color: var(--color-neutral-400); }
+}
+
+/*
+ * Primary/brand semantic aliases. Use these instead of hand-picking a
+ * shade + dark variant. They auto-pick a darker shade in light mode and
+ * a lighter shade in dark mode for accessible contrast on `bg-surface`.
+ */
+@utility text-primary {
+  color: var(--color-primary-600);
+  .dark & { color: var(--color-primary-400); }
+}
+@utility bg-primary {
+  background-color: var(--color-primary-600);
+  .dark & { background-color: var(--color-primary-400); }
+}
+@utility bg-primary-soft {
+  background-color: var(--color-primary-100);
+  .dark & { background-color: color-mix(in oklab, var(--color-primary-900) 40%, transparent); }
+}
+@utility text-primary-on-soft {
+  color: var(--color-primary-800);
+  .dark & { color: var(--color-primary-300); }
+}

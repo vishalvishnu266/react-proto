@@ -1,0 +1,23 @@
+/*
+ * Z-index layer registry.
+ *
+ * Single source of truth for stacking order across the whole app.
+ * Reference these variables (via inline `style` or a utility) instead
+ * of scattering magic z-index numbers throughout components.
+ *
+ * Ordering — lowest to highest:
+ *   base          → default flow / decorative overlays
+ *   sticky        → sticky headers, floating action buttons
+ *   nav           → app chrome (top bar, bottom nav)
+ *   popover       → dropdowns, menus, tooltips
+ *   modal         → dialogs, sheets (blocks interaction below)
+ *   toast         → transient notifications above everything
+ */
+:root {
+  --z-base:    0;
+  --z-sticky:  10;
+  --z-nav:     50;
+  --z-popover: 1000;
+  --z-modal:   2000;
+  --z-toast:   3000;
+}

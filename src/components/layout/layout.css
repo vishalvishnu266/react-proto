@@ -1,0 +1,66 @@
+/*
+ * Styles for the layout primitives (`Row`, `Column`, `Grid`, `Spacer`).
+ *
+ * Only plain CSS here — Tailwind at-rules (`@theme`, `@utility`) must
+ * stay in `src/styles/`. See `../Select.css` for why.
+ *
+ * These primitives cover the 90% case for building app layouts
+ * without hand-writing flex/grid classes in every component:
+ *   - `<Row>`      : horizontal flex container
+ *   - `<Column>`   : vertical flex container (aliased as `<Stack>`)
+ *   - `<Grid>`     : CSS grid container
+ *   - `<Spacer>`   : `flex: 1` filler
+ */
+
+/* ---------- Row & Column base ---------- */
+
+.l-row,
+.l-col {
+  display: flex;
+  min-width: 0; /* let children shrink inside flex parents */
+}
+.l-row { flex-direction: row; }
+.l-col { flex-direction: column; }
+
+.l-wrap { flex-wrap: wrap; }
+
+/* ---------- Alignment presets (align-items = cross axis) ---------- */
+
+.l-align-start   { align-items: flex-start; }
+.l-align-center  { align-items: center; }
+.l-align-end     { align-items: flex-end; }
+.l-align-stretch { align-items: stretch; }
+.l-align-baseline{ align-items: baseline; }
+
+/* ---------- Justify presets (justify-content = main axis) ---------- */
+
+.l-justify-start   { justify-content: flex-start; }
+.l-justify-center  { justify-content: center; }
+.l-justify-end     { justify-content: flex-end; }
+.l-justify-between { justify-content: space-between; }
+.l-justify-around  { justify-content: space-around; }
+.l-justify-evenly  { justify-content: space-evenly; }
+
+/* ---------- Grid ---------- */
+
+.l-grid {
+  display: grid;
+  min-width: 0;
+}
+
+/* ---------- Spacer ---------- */
+
+/*
+ * Grows to fill remaining space inside a Row/Column. Useful for pushing
+ * siblings to the far end without setting `justify="between"` on the parent.
+ *
+ *   <Row>
+ *     <Logo />
+ *     <Spacer />
+ *     <UserMenu />
+ *   </Row>
+ */
+.l-spacer {
+  flex: 1 1 auto;
+  align-self: stretch;
+}

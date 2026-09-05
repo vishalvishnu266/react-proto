@@ -1,0 +1,38 @@
+/*
+ * Design-token palettes.
+ *
+ * This is where the app's raw color scales are defined. Anything else in
+ * the codebase (components, semantic utilities) should refer to the
+ * `primary-*` and `neutral-*` scales below rather than a concrete color
+ * like `teal-*` or `zinc-*`.
+ *
+ * To rebrand the whole app:
+ *   - Swap `teal` for another Tailwind color (e.g. `blue`) below.
+ *   - Swap `zinc` for another neutral (e.g. `slate`, `stone`, `neutral`).
+ * Every component picks up the change automatically.
+ */
+@theme {
+  /* Primary / brand color scale */
+  --color-primary-50:  var(--color-teal-50);
+  --color-primary-100: var(--color-teal-100);
+  --color-primary-200: var(--color-teal-200);
+  --color-primary-300: var(--color-teal-300);
+  --color-primary-400: var(--color-teal-400);
+  --color-primary-500: var(--color-teal-500);
+  --color-primary-600: var(--color-teal-600);
+  --color-primary-700: var(--color-teal-700);
+  --color-primary-800: var(--color-teal-800);
+  --color-primary-900: var(--color-teal-900);
+  --color-primary-950: var(--color-teal-950);
+
+  /* Neutral scale — used by the semantic surface/border/text utilities */
+  --color-neutral-100: var(--color-zinc-100);
+  --color-neutral-200: var(--color-zinc-200);
+  --color-neutral-300: var(--color-zinc-300);
+  --color-neutral-400: var(--color-zinc-400);
+  --color-neutral-500: var(--color-zinc-500);
+  --color-neutral-600: var(--color-zinc-600);
+  --color-neutral-700: var(--color-zinc-700);
+  --color-neutral-800: var(--color-zinc-800);
+  --color-neutral-900: var(--color-zinc-900);
+}

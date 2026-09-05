@@ -1,0 +1,22 @@
+/*
+ * App CSS entrypoint.
+ *
+ * Kept intentionally small — it just wires up Tailwind and pulls in
+ * the shared design layers. Component-specific styles live next to
+ * each component (e.g. `src/components/Select.css`) and are imported
+ * from the component's `.tsx` file.
+ *
+ * Layer order (later imports win):
+ *   1. `tailwindcss`              — Tailwind's preflight + core utilities
+ *   2. `dark` custom variant       — enables class-based dark mode
+ *   3. `styles/theme.css`          — raw color palettes (primary, neutral)
+ *   4. `styles/semantic.css`       — semantic utilities (bg-surface, text-*, ...)
+ */
+@import "tailwindcss";
+
+/* Tailwind v4: enable class-based dark mode via the `.dark` class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@import "./styles/theme.css";
+@import "./styles/semantic.css";
+@import "./styles/z-layers.css";

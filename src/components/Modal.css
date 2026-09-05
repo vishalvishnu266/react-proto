@@ -1,0 +1,109 @@
+/*
+ * Styles owned by the `<Modal>` component.
+ *
+ * Two visual modes:
+ *   - `sheet`  : bottom-anchored, full-width, slides up (mobile-first)
+ *   - `dialog` : centered card, fades + scales in (desktop)
+ *
+ * Both share a backdrop that fades in. Uses semantic tokens
+ * (`bg-surface`, `border-subtle`) so the modal re-themes automatically.
+ * See `Select.css` for the plain-CSS-only rule for colocated files.
+ *
+ * The modal is fixed in place — dismissed via backdrop click, Escape,
+ * or the browser/Android back button (wired in `useModal`).
+ */
+
+/* ---------- Backdrop (shared) ---------- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  /* z-index is set inline via `--z-modal` from `z-layers.css`. */
+  animation: modal-backdrop-in 150ms ease-out;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---------- Shared panel ---------- */
+
+.modal-panel {
+  position: fixed;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-neutral-200);
+  color: var(--color-neutral-900);
+  outline: none;
+}
+.dark .modal-panel {
+  background-color: var(--color-neutral-900);
+  border-color: var(--color-neutral-800);
+  color: var(--color-white);
+}
+
+/* ---------- Sheet mode (mobile) ---------- */
+
+.modal-panel[data-mode='sheet'] {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 16px 16px 0 0;
+  border-bottom: none;
+  /*
+   * Cap at 85vh so a very long list scrolls internally, but let the
+   * sheet auto-shrink to its content when short (a 3-item language
+   * picker shouldn't take up 85% of the screen).
+   */
+  max-height: 85vh;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  /* Respect the iOS home indicator so content isn't hidden behind it. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: modal-sheet-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes modal-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+/* ---------- Dialog mode (desktop) ---------- */
+
+.modal-panel[data-mode='dialog'] {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 320px;
+  max-width: min(90vw, 480px);
+  max-height: 85vh;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  animation: modal-dialog-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.10);
+}
+
+@keyframes modal-dialog-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ---------- Body scroll region ---------- */
+
+.modal-body {
+  overflow-y: auto;
+  overscroll-behavior: contain; /* don't scroll the page when the list ends */
+  /*
+   * `flex: 0 1 auto` lets the body shrink to content when the sheet is
+   * short, while `min-height: 0` still allows overflow scrolling when
+   * the body is taller than the sheet's max-height cap.
+   */
+  flex: 0 1 auto;
+  min-height: 0;
+}

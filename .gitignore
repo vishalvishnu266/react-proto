@@ -1,0 +1,77 @@
+# ---------- Logs ----------
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---------- Dependencies ----------
+node_modules
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/install-state.gz
+jspm_packages
+
+# ---------- Build output ----------
+dist
+dist-ssr
+build
+out
+*.local
+
+# ---------- Vite ----------
+.vite
+
+# ---------- TanStack Router ----------
+# Local cache/tmp created by @tanstack/router-plugin. The generated
+# `src/routeTree.gen.ts` is intentionally NOT ignored — it's committed so
+# CI/consumers don't need to regenerate it.
+.tanstack
+.tanstack/tmp
+
+# ---------- TypeScript ----------
+*.tsbuildinfo
+.tsbuildinfo
+node_modules/.tmp
+
+# ---------- Test / coverage ----------
+coverage
+*.lcov
+.nyc_output
+
+# ---------- Env files (never commit secrets) ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Caches ----------
+.cache
+.parcel-cache
+.eslintcache
+.stylelintcache
+.oxlintcache
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- Editor directories and files ----------
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~

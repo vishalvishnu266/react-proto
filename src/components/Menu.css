@@ -1,0 +1,19 @@
+/*
+ * Styles owned by the `<Menu>` component.
+ *
+ * The menu presents its items through `<Modal>`, so the shell (sheet
+ * on mobile, dialog on desktop, animations, backdrop, close behavior)
+ * is inherited from Modal.css. Only menu-item styling lives here.
+ *
+ * See `Select.css` / `Modal.css` for the plain-CSS-only rule for
+ * colocated files.
+ */
+
+/* Focus ring on keyboard navigation. Mouse users get :hover instead. */
+.menu-item:focus-visible {
+  outline: none;
+  background-color: var(--color-neutral-100);
+}
+.dark .menu-item:focus-visible {
+  background-color: var(--color-neutral-800);
+}

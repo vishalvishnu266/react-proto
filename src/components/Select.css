@@ -1,0 +1,13 @@
+/*
+ * Styles owned by the `<Select>` component.
+ *
+ * The Select now presents its options via `<Modal>`, so it no longer
+ * needs its own popover positioning or open animation — those live in
+ * `Modal.css`. This file is intentionally kept as the colocated home
+ * for any Select-specific presentation we might add later (row hover
+ * animations, focus rings, etc.) so `Select.tsx` continues to import
+ * from it.
+ *
+ * See `Modal.css` for the sheet/dialog animations and the plain-CSS
+ * restriction on colocated files.
+ */
