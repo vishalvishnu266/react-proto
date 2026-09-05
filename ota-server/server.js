@@ -62,6 +62,37 @@ function sha256File(p) {
 }
 
 const app = express();
+
+// -----------------------------------------------------------------------------
+// CORS — permissive by design. The OTA server needs to accept requests from
+// any WebView / browser origin (Capacitor apps use origins like
+// http://localhost, https://localhost, capacitor://localhost, http://192.168.x.y,
+// and file://…) so a wildcard is the right default here.
+// -----------------------------------------------------------------------------
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, OPTIONS',
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] ||
+      'Content-Type, Authorization, X-Requested-With, Accept, Origin',
+  );
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+
+  // Short-circuit preflight requests.
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
+
 app.use(express.json({ limit: '2mb' }));
 
 app.use((req, _res, next) => {
