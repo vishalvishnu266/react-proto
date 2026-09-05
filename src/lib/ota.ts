@@ -1,21 +1,18 @@
 import { Capacitor } from '@capacitor/core';
-import {
-  CapacitorUpdater,
-  type BundleInfo,
-} from '@capgo/capacitor-updater';
+import { LiveUpdate } from '@capawesome/capacitor-live-update';
 
 /**
- * OTA update helper.
+ * OTA update helper using @capawesome/capacitor-live-update.
  *
- * Strategy:
- *   1. On startup call `notifyAppReady()` so the native layer doesn't roll
- *      back the currently-running bundle.
- *   2. Every 15s, `fetch()` our OTA server's /updates endpoint directly
- *      (rather than relying on `CapacitorUpdater.getLatest()`, which is a
- *      convenience wrapper that behaves differently across plugin versions
- *      and can silently swallow errors).
- *   3. If the server says a newer version exists, download it with the
- *      plugin, set it as next, and reload.
+ * We poll our own /updates endpoint every 15 seconds. If it reports a newer
+ * bundle we:
+ *
+ *   1. downloadBundle({ url, bundleId })   -> fetches + unpacks the zip
+ *   2. setNextBundle({ bundleId })         -> mark it for the next launch
+ *   3. reload()                            -> restart the webview into it
+ *
+ * `ready()` must be called once on boot so a just-installed bundle isn't
+ * rolled back by the plugin's watchdog.
  *
  * The server-side contract lives in `ota-server/server.js`.
  */
@@ -27,7 +24,7 @@ const POLL_INTERVAL_MS = 15_000;
 declare const __OTA_URL__: string;
 const OTA_UPDATES_URL =
   (typeof __OTA_URL__ !== 'undefined' && __OTA_URL__) ||
-  'http://192.168.0.6:9000/updates';
+  'http://192.168.0.50:9000/updates';
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let checking = false;
@@ -42,7 +39,6 @@ interface ServerUpdateResponse {
   version?: string;
   url?: string;
   checksum?: string;
-  session_key?: string;
   message?: string;
 }
 
@@ -55,13 +51,9 @@ async function fetchLatestFromServer(
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         app_id: 'com.myapp.app',
-        device_id: 'device',
         platform: Capacitor.getPlatform(),
         version_name: currentVersion,
         version_build: currentVersion,
-        plugin_version: '7.0.0',
-        is_emulator: false,
-        is_prod: true,
       }),
     });
     if (!res.ok) {
@@ -76,55 +68,61 @@ async function fetchLatestFromServer(
 }
 
 /**
+ * Best-effort read of the currently-running bundle's id.
+ * On a freshly installed APK this returns something like `null` / "builtin".
+ */
+async function getCurrentBundleId(): Promise<string> {
+  try {
+    const result = await LiveUpdate.getCurrentBundle();
+    // { bundleId: string | null } — null means the built-in bundle.
+    return result?.bundleId || 'builtin';
+  } catch (e) {
+    log('getCurrentBundle() failed (ok on first launch):', String(e));
+    return 'builtin';
+  }
+}
+
+/**
  * Check the OTA server for a newer bundle; download + apply if found.
  */
-export async function checkForUpdateNow(): Promise<BundleInfo | null> {
-  if (!Capacitor.isNativePlatform()) return null;
-  if (!Capacitor.isPluginAvailable('CapacitorUpdater')) {
-    log('plugin unavailable');
-    return null;
-  }
-  if (checking) return null;
+export async function checkForUpdateNow(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  if (checking) return false;
   checking = true;
   try {
-    const current = await CapacitorUpdater.current();
-    const currentVersion = current?.bundle?.version || 'builtin';
-
+    const currentVersion = await getCurrentBundleId();
     const latest = await fetchLatestFromServer(currentVersion);
-    if (!latest) return null;
+    if (!latest) return false;
     if (latest.message || !latest.version || !latest.url) {
       log('no update — server said:', JSON.stringify(latest));
-      return null;
+      return false;
     }
     if (latest.version === currentVersion) {
       log('already on latest', latest.version);
-      return null;
+      return false;
     }
     if (latest.version === lastTriedVersion) {
-      // Avoid spamming download attempts for a version we just failed on.
       log('skipping — already tried', latest.version);
-      return null;
+      return false;
     }
     lastTriedVersion = latest.version;
 
     log('downloading', latest.version, '→', latest.url);
-    // NOTE: intentionally NOT passing a `checksum` here. The plugin will
-    // otherwise reject the download unless the checksum matches its exact
-    // expected format (which varies across plugin versions). Since we're
-    // running unsigned in dev (publicKey: ''), skipping it is safe.
-    const bundle = await CapacitorUpdater.download({
+    await LiveUpdate.downloadBundle({
+      bundleId: latest.version,
       url: latest.url,
-      version: latest.version,
     });
-    log('downloaded bundle', JSON.stringify(bundle));
+    log('downloaded bundle', latest.version);
 
-    log('applying bundle', bundle.id);
-    await CapacitorUpdater.set({ id: bundle.id });
-    // set() reloads the webview into the new bundle. Execution won't continue.
-    return bundle;
+    log('setting next bundle', latest.version);
+    await LiveUpdate.setNextBundle({ bundleId: latest.version });
+
+    log('reloading into new bundle');
+    await LiveUpdate.reload();
+    return true;
   } catch (err) {
     log('check failed', String(err), (err as Error)?.stack);
-    return null;
+    return false;
   } finally {
     checking = false;
   }
@@ -138,15 +136,12 @@ export function startOtaPolling(intervalMs: number = POLL_INTERVAL_MS): void {
     log('not a native platform — polling disabled');
     return;
   }
-  if (!Capacitor.isPluginAvailable('CapacitorUpdater')) {
-    log('CapacitorUpdater plugin not available — polling disabled');
-    return;
-  }
 
-  // Confirm the current bundle is healthy so it isn't rolled back.
-  CapacitorUpdater.notifyAppReady()
-    .then(() => log('notifyAppReady OK'))
-    .catch((e) => log('notifyAppReady failed', String(e)));
+  // Tell the plugin the current bundle booted successfully so it isn't
+  // rolled back on next launch.
+  LiveUpdate.ready()
+    .then(() => log('ready() OK'))
+    .catch((e) => log('ready() failed', String(e)));
 
   // Fire once immediately, then on an interval.
   void checkForUpdateNow();

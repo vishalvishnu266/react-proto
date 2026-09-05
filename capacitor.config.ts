@@ -51,23 +51,18 @@ const config: CapacitorConfig = {
       : {}),
   },
   plugins: {
-    CapacitorUpdater: {
-      // The plugin will POST device/app info here and expect a JSON response
-      // describing the newest bundle. See `ota-server/server.js` -> POST /updates.
-      autoUpdateUrl: `${OTA_SERVER}/updates`,
-      // We drive checks ourselves every 15s (see src/lib/ota.ts), but leaving
-      // autoUpdate on gives us free background download + apply on next resume.
-      autoUpdate: true,
-      // Statistics/telemetry endpoints (optional; server implements no-op 200s).
-      statsUrl: `${OTA_SERVER}/stats`,
-      channelUrl: `${OTA_SERVER}/channel`,
-      // Public key for signed bundles — left empty to disable signature checks
-      // for local development. Populate in production!
-      publicKey: '',
-      // Directly install without waiting for the app to be backgrounded.
-      directUpdate: true,
-      // Reset to bundled version if the new one crashes on boot.
-      resetWhenUpdate: true,
+    // @capawesome/capacitor-live-update — self-hosted friendly.
+    // We drive the whole flow from src/lib/ota.ts (poll → downloadBundle →
+    // setNextBundle → reload), so no per-plugin URL config is needed.
+    // `readyTimeout` = how long the plugin waits for `LiveUpdate.ready()`
+    // to be called after boot before rolling back to the previous bundle.
+    LiveUpdate: {
+      appId: 'com.myapp.app',
+      autoDeleteBundles: true,
+      readyTimeout: 10000,
+      // OTA server base URL kept here for reference / debugging only.
+      // The actual URL used by the client lives in src/lib/ota.ts.
+      // serverUrl: `${OTA_SERVER}`,
     },
   },
 };
