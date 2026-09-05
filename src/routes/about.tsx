@@ -1,8 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import T from '../tKeys'
-import Card from '../components/Card'
-import Switch from '../components/Switch'
 
 export const Route = createFileRoute('/about')({
   component: AboutPage,

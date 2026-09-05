@@ -112,18 +112,68 @@ async function main() {
   console.log(`▶ Zipping ${distDir} -> ${zipPath}`);
   await zipDirectory(distDir, zipPath);
 
-  console.log(`▶ Registering with OTA server at ${OTA_URL}`);
-  const res = await fetch(`${OTA_URL}/admin/register`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ version }),
-  });
-  if (!res.ok) {
-    console.error('registration failed:', res.status, await res.text());
-    process.exit(1);
+  // The zip lives on this machine. If the OTA server is on the SAME machine
+  // (localhost / 127.0.0.1 / this machine's own IPs) it can read the file
+  // directly from disk via /admin/register. Otherwise we upload it over HTTP.
+  const uploadNeeded = !isLocalServer(OTA_URL);
+
+  let body;
+  if (uploadNeeded) {
+    console.log(`▶ Uploading ${zipPath} to ${OTA_URL}`);
+    const zipBuf = fs.readFileSync(zipPath);
+    const res = await fetch(
+      `${OTA_URL}/admin/upload?version=${encodeURIComponent(version)}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/zip' },
+        body: zipBuf,
+      },
+    );
+    if (!res.ok) {
+      console.error('upload failed:', res.status, await res.text());
+      process.exit(1);
+    }
+    body = await res.json();
+  } else {
+    console.log(`▶ Registering with OTA server at ${OTA_URL}`);
+    const res = await fetch(`${OTA_URL}/admin/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ version }),
+    });
+    if (!res.ok) {
+      console.error('registration failed:', res.status, await res.text());
+      process.exit(1);
+    }
+    body = await res.json();
   }
-  const body = await res.json();
+
   console.log('✔ Published version', body.version, 'sha256=' + body.checksum.slice(0, 12) + '…');
+}
+
+/**
+ * Decide whether the OTA server host refers to *this* machine, so we can
+ * skip the HTTP upload and use the on-disk /admin/register shortcut.
+ */
+function isLocalServer(url) {
+  try {
+    const host = new URL(url).hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') {
+      return true;
+    }
+    // Compare against local network interfaces.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const os = require('node:os');
+    const ifaces = os.networkInterfaces();
+    for (const list of Object.values(ifaces)) {
+      for (const it of list || []) {
+        if (it.address === host) return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function zipDirectory(sourceDir, outPath) {

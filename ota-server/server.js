@@ -131,6 +131,40 @@ app.post('/admin/register', (req, res) => {
   res.json({ ok: true, version, checksum });
 });
 
+// --- Admin: upload + register in one shot -----------------------------------
+// Used by scripts/publish-ota.js when the publisher and the server run on
+// different machines. Streams the zip body to bundles/<version>.zip, then
+// updates the manifest so it becomes the "latest" version.
+//
+//   POST /admin/upload?version=1.2.3
+//   Content-Type: application/zip
+//   <raw zip bytes as body>
+app.post(
+  '/admin/upload',
+  express.raw({ type: '*/*', limit: '500mb' }),
+  (req, res) => {
+    const version = String(req.query.version || '').trim();
+    if (!version) return res.status(400).json({ error: 'version query param required' });
+    if (!req.body || !req.body.length) return res.status(400).json({ error: 'empty body' });
+
+    const zipPath = path.join(BUNDLES_DIR, `${version}.zip`);
+    fs.writeFileSync(zipPath, req.body);
+    const checksum = crypto.createHash('sha256').update(req.body).digest('hex');
+
+    const manifest = readManifest();
+    manifest.versions[version] = {
+      checksum,
+      size: req.body.length,
+      publishedAt: new Date().toISOString(),
+    };
+    manifest.latest = version;
+    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+
+    log('uploaded + registered version', version, 'sha256=' + checksum.slice(0, 12) + '...');
+    res.json({ ok: true, version, checksum, size: req.body.length });
+  },
+);
+
 app.listen(PORT, HOST, () => {
   log(`OTA server listening on http://${HOST}:${PORT}`);
   log(`Public base URL: ${PUBLIC_BASE_URL}`);
