@@ -1,20 +1,13 @@
 /**
- * OTA update server for the Capacitor app.
+ * Minimal OTA update server.
  *
- * Protocol is compatible with @capgo/capacitor-updater's `autoUpdateUrl`:
+ * Reads ota-server/bundles/latest.json (written by scripts/publish-ota.js) to
+ * find the newest bundle, and serves the zips from ota-server/bundles/.
  *
- *   POST /updates
- *     body: { app_id, device_id, version_name, version_build, plugin_version, ... }
- *     200:  { version, url, session_key?, checksum? }        // update available
- *     200:  { message: "No new version available" }          // up to date
- *
- * The server serves bundle zips from ./bundles/<version>.zip and keeps track
- * of the "latest" version in ./bundles/manifest.json:
- *
- *   { "latest": "1.0.1", "versions": { "1.0.1": { "checksum": "..." } } }
- *
- * The `publish.js` script builds the web app and drops a new zip + updates
- * this manifest.
+ *   POST /updates             -> { version, url, checksum } or { message: "No new version available" }
+ *   GET  /bundles/<file>.zip  -> the zipped web build
+ *   GET  /health              -> { ok: true }
+ *   GET  /latest              -> raw contents of latest.json (debug)
  */
 
 import express from 'express';
@@ -25,25 +18,15 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR = path.join(__dirname, 'bundles');
-const MANIFEST_PATH = path.join(BUNDLES_DIR, 'manifest.json');
+const LATEST_PATH = path.join(BUNDLES_DIR, 'latest.json');
 
-const HOST = process.env.OTA_HOST || '0.0.0.0';
+const HOST = process.env.OTA_HOST_BIND || '0.0.0.0';
 const PORT = Number(process.env.OTA_PORT || 9000);
-// Publicly reachable base URL that the device will use to download the zip.
-// Must match capacitor.config.ts -> OTA_SERVER.
+// The URL the device uses to download bundle zips. Must be reachable from the
+// Android device (i.e. this machine's LAN IP or a hostname that resolves to it).
 const PUBLIC_BASE_URL = process.env.OTA_PUBLIC_URL || 'http://192.168.0.50:9000';
 
 fs.mkdirSync(BUNDLES_DIR, { recursive: true });
-if (!fs.existsSync(MANIFEST_PATH)) {
-  fs.writeFileSync(
-    MANIFEST_PATH,
-    JSON.stringify({ latest: null, versions: {} }, null, 2),
-  );
-}
-
-function readManifest() {
-  return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
-}
 
 function log(...args) {
   const ts = new Date().toISOString();
@@ -51,42 +34,56 @@ function log(...args) {
   console.log(`[ota ${ts}]`, ...args);
 }
 
+function readLatest() {
+  if (!fs.existsSync(LATEST_PATH)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(LATEST_PATH, 'utf8'));
+  } catch (e) {
+    log('failed to read latest.json:', e.message);
+    return null;
+  }
+}
+
+function sha256File(p) {
+  const buf = fs.readFileSync(p);
+  return crypto.createHash('sha256').update(buf).digest('hex');
+}
+
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
-// Simple request logger.
 app.use((req, _res, next) => {
-  log(req.method, req.url, req.ip);
+  log(req.method, req.url);
   next();
 });
 
-// --- Update check endpoint ---------------------------------------------------
+// --- Update check (Capgo Updater protocol) ----------------------------------
 app.post('/updates', (req, res) => {
-  const manifest = readManifest();
-  const latest = manifest.latest;
+  const latest = readLatest();
   const client = req.body || {};
   const clientVersion = client.version_name || client.version_build || 'unknown';
 
-  if (!latest) {
+  if (!latest || !latest.latest || !latest.file) {
     return res.json({ message: 'No new version available' });
   }
-  if (clientVersion === latest) {
+  if (clientVersion === latest.latest) {
     return res.json({ message: 'No new version available' });
   }
 
-  const entry = manifest.versions[latest];
-  if (!entry) {
+  const zipPath = path.join(BUNDLES_DIR, latest.file);
+  if (!fs.existsSync(zipPath)) {
+    log('latest.json points to missing file:', latest.file);
     return res.json({ message: 'No new version available' });
   }
 
   const payload = {
-    version: latest,
-    url: `${PUBLIC_BASE_URL}/bundles/${encodeURIComponent(latest)}.zip`,
-    checksum: entry.checksum,
+    version: latest.latest,
+    url: `${PUBLIC_BASE_URL}/bundles/${encodeURIComponent(latest.file)}`,
+    checksum: sha256File(zipPath),
     session_key: '',
   };
-  log('offering', clientVersion, '->', latest);
-  return res.json(payload);
+  log('offering', clientVersion, '->', latest.latest);
+  res.json(payload);
 });
 
 // --- Optional telemetry endpoints (no-op 200) --------------------------------
@@ -97,73 +94,18 @@ app.post('/channel', (_req, res) => res.status(200).json({ ok: true }));
 app.use(
   '/bundles',
   express.static(BUNDLES_DIR, {
-    fallthrough: false,
     setHeaders(res) {
       res.setHeader('Cache-Control', 'no-store');
     },
   }),
 );
 
-// --- Admin: list what we're serving ------------------------------------------
-app.get('/manifest', (_req, res) => res.json(readManifest()));
-app.get('/health', (_req, res) => res.json({ ok: true }));
-
-// --- Admin: register a new bundle after it has been dropped in ./bundles -----
-// Used by scripts/publish.js. Body: { version }
-app.post('/admin/register', (req, res) => {
-  const { version } = req.body || {};
-  if (!version) return res.status(400).json({ error: 'version required' });
-
-  const zipPath = path.join(BUNDLES_DIR, `${version}.zip`);
-  if (!fs.existsSync(zipPath)) {
-    return res.status(404).json({ error: `bundles/${version}.zip missing` });
-  }
-
-  const buf = fs.readFileSync(zipPath);
-  const checksum = crypto.createHash('sha256').update(buf).digest('hex');
-
-  const manifest = readManifest();
-  manifest.versions[version] = { checksum, size: buf.length, publishedAt: new Date().toISOString() };
-  manifest.latest = version;
-  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-
-  log('registered version', version, 'sha256=' + checksum.slice(0, 12) + '...');
-  res.json({ ok: true, version, checksum });
+app.get('/latest', (_req, res) => {
+  const latest = readLatest();
+  if (!latest) return res.status(404).json({ error: 'no bundle published yet' });
+  res.json(latest);
 });
-
-// --- Admin: upload + register in one shot -----------------------------------
-// Used by scripts/publish-ota.js when the publisher and the server run on
-// different machines. Streams the zip body to bundles/<version>.zip, then
-// updates the manifest so it becomes the "latest" version.
-//
-//   POST /admin/upload?version=1.2.3
-//   Content-Type: application/zip
-//   <raw zip bytes as body>
-app.post(
-  '/admin/upload',
-  express.raw({ type: '*/*', limit: '500mb' }),
-  (req, res) => {
-    const version = String(req.query.version || '').trim();
-    if (!version) return res.status(400).json({ error: 'version query param required' });
-    if (!req.body || !req.body.length) return res.status(400).json({ error: 'empty body' });
-
-    const zipPath = path.join(BUNDLES_DIR, `${version}.zip`);
-    fs.writeFileSync(zipPath, req.body);
-    const checksum = crypto.createHash('sha256').update(req.body).digest('hex');
-
-    const manifest = readManifest();
-    manifest.versions[version] = {
-      checksum,
-      size: req.body.length,
-      publishedAt: new Date().toISOString(),
-    };
-    manifest.latest = version;
-    fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-
-    log('uploaded + registered version', version, 'sha256=' + checksum.slice(0, 12) + '...');
-    res.json({ ok: true, version, checksum, size: req.body.length });
-  },
-);
+app.get('/health', (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, HOST, () => {
   log(`OTA server listening on http://${HOST}:${PORT}`);

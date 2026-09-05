@@ -80,6 +80,7 @@ android/app/src/main/assets/capacitor.plugins.json
 
 # ---------- OTA server ----------
 ota-server/bundles/*.zip
+ota-server/bundles/latest.json
 ota-server/bundles/manifest.json
 
 # ---------- Editor directories and files ----------
