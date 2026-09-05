@@ -1,10 +1,35 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 /**
- * OTA server base URL. Update this if the LAN OTA server moves.
- * The Node.js OTA server in `ota-server/` listens on this address:port.
+ * OTA server base URL. The device MUST be able to reach this IP:port.
+ * Configured centrally via `.env.ota` (OTA_HOST + OTA_PORT) so we don't
+ * have to keep it in sync across capacitor.config.ts, ota-server/server.js
+ * and src/lib/ota.ts by hand.
+ *
+ * Capacitor's CLI loads this file with a CommonJS loader (ts-node/register),
+ * so we can't use `import.meta.url` here — use __dirname + fs instead.
  */
-const OTA_SERVER = 'http://192.168.0.50:9000';
+function loadOtaEnv() {
+  const defaults: Record<string, string> = {
+    OTA_HOST: '192.168.0.6',
+    OTA_PORT: '9000',
+  };
+  const envPath = path.join(__dirname, '.env.ota');
+  if (fs.existsSync(envPath)) {
+    for (const line of fs.readFileSync(envPath, 'utf8').split(/\r?\n/)) {
+      if (!line || line.trim().startsWith('#')) continue;
+      const m = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+      if (m) defaults[m[1]] = m[2];
+    }
+  }
+  if (process.env.OTA_HOST) defaults.OTA_HOST = process.env.OTA_HOST;
+  if (process.env.OTA_PORT) defaults.OTA_PORT = process.env.OTA_PORT;
+  return defaults;
+}
+const { OTA_HOST, OTA_PORT } = loadOtaEnv();
+const OTA_SERVER = `http://${OTA_HOST}:${OTA_PORT}`;
 
 const config: CapacitorConfig = {
   appId: 'com.myapp.app',

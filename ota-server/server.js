@@ -20,11 +20,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BUNDLES_DIR = path.join(__dirname, 'bundles');
 const LATEST_PATH = path.join(BUNDLES_DIR, 'latest.json');
 
+// Load .env.ota so this server + the app + the publisher all agree on the URL.
+function loadEnvFile(p) {
+  if (!fs.existsSync(p)) return;
+  for (const line of fs.readFileSync(p, 'utf8').split(/\r?\n/)) {
+    if (!line || line.trim().startsWith('#')) continue;
+    const m = /^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/.exec(line);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2];
+  }
+}
+loadEnvFile(path.join(__dirname, '..', '.env.ota'));
+
 const HOST = process.env.OTA_HOST_BIND || '0.0.0.0';
 const PORT = Number(process.env.OTA_PORT || 9000);
-// The URL the device uses to download bundle zips. Must be reachable from the
-// Android device (i.e. this machine's LAN IP or a hostname that resolves to it).
-const PUBLIC_BASE_URL = process.env.OTA_PUBLIC_URL || 'http://192.168.0.50:9000';
+// The URL the device uses to download bundle zips.
+const PUBLIC_BASE_URL =
+  process.env.OTA_PUBLIC_URL ||
+  `http://${process.env.OTA_HOST || '192.168.0.6'}:${PORT}`;
 
 fs.mkdirSync(BUNDLES_DIR, { recursive: true });
 
@@ -58,21 +70,36 @@ app.use((req, _res, next) => {
 });
 
 // --- Update check (Capgo Updater protocol) ----------------------------------
+// Capgo sends a rich payload; we only care about the version identifier.
+// For a freshly-installed APK the built-in bundle reports version "builtin",
+// so anything that isn't literally the current latest counts as "outdated".
 app.post('/updates', (req, res) => {
   const latest = readLatest();
   const client = req.body || {};
-  const clientVersion = client.version_name || client.version_build || 'unknown';
+  const clientVersion =
+    client.version_name || client.version_build || client.version || 'unknown';
+
+  // Verbose logging so we can see exactly what the device asks for.
+  log(
+    'update check from',
+    clientVersion,
+    'platform=' + (client.platform || '?'),
+    'app_id=' + (client.app_id || '?'),
+  );
 
   if (!latest || !latest.latest || !latest.file) {
-    return res.json({ message: 'No new version available' });
-  }
-  if (clientVersion === latest.latest) {
+    log('  -> no bundle published yet');
     return res.json({ message: 'No new version available' });
   }
 
   const zipPath = path.join(BUNDLES_DIR, latest.file);
   if (!fs.existsSync(zipPath)) {
-    log('latest.json points to missing file:', latest.file);
+    log('  -> latest.json points to missing file:', latest.file);
+    return res.json({ message: 'No new version available' });
+  }
+
+  if (clientVersion === latest.latest) {
+    log('  -> client already on latest', latest.latest);
     return res.json({ message: 'No new version available' });
   }
 
@@ -82,7 +109,7 @@ app.post('/updates', (req, res) => {
     checksum: sha256File(zipPath),
     session_key: '',
   };
-  log('offering', clientVersion, '->', latest.latest);
+  log('  -> offering', latest.latest, payload.url);
   res.json(payload);
 });
 
