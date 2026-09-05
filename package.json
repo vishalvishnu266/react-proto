@@ -14,7 +14,9 @@
     "cap:run:android": "npm run build && cap run android",
     "android": "npm run cap:sync:android && cap open android",
     "ota:server": "node ota-server/server.js",
-    "ota:publish": "node scripts/publish-ota.js"
+    "ota:publish": "node scripts/publish-ota.js",
+    "ota:publish:minor": "node scripts/publish-ota.js minor",
+    "ota:publish:major": "node scripts/publish-ota.js major"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.1",
