@@ -15,7 +15,14 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import archiver from 'archiver';
+import { createRequire } from 'node:module';
+
+// `archiver` is a CommonJS module whose `module.exports` is the factory
+// function itself. Under `"type": "module"` Node's ESM loader does NOT expose
+// a default export for it (`import archiver from 'archiver'` yields undefined),
+// so we bridge via createRequire to get the callable factory.
+const require = createRequire(import.meta.url);
+const archiver = require('archiver');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
