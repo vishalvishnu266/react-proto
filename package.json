@@ -7,9 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npm run build && cap sync",
+    "cap:sync:android": "npm run build && cap sync android",
+    "cap:open:android": "cap open android",
+    "cap:run:android": "npm run build && cap run android",
+    "android": "npm run cap:sync:android && cap open android",
+    "ota:server": "node ota-server/server.js",
+    "ota:publish": "node scripts/publish-ota.js"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capgo/capacitor-updater": "^8.51.15",
     "@tanstack/react-router": "^1.170.32",
     "i18next": "^26.4.2",
     "lucide-react": "^1.41.0",
@@ -18,12 +28,16 @@
     "react-i18next": "^17.0.13"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-plugin": "^1.168.35",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "archiver": "^8.0.0",
+    "express": "^5.2.1",
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

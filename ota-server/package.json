@@ -1,0 +1,12 @@
+{
+  "name": "ota-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local OTA update server for the Capacitor app (Capgo Updater compatible).",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

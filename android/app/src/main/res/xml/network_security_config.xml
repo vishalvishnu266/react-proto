@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Network security config for Capacitor Android.
+
+    - Allows cleartext (plain HTTP) traffic for the app's WebView origin
+      (localhost) and common local-network address ranges so the app can
+      talk to devices/services on the LAN without TLS.
+    - Keeps the platform default (HTTPS-preferred, cleartext denied) for
+      the rest of the internet.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Explicit allow-list for local network / loopback hosts. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>       <!-- Android emulator host -->
+        <domain includeSubdomains="true">10.0.3.2</domain>       <!-- Genymotion host -->
+        <domain includeSubdomains="true">0.0.0.0</domain>
+        <domain includeSubdomains="true">10.0.0.0</domain>
+        <domain includeSubdomains="true">192.168.0.0</domain>
+        <!-- OTA update server (see capacitor.config.ts / ota-server/) -->
+        <domain includeSubdomains="true">192.168.0.50</domain>
+        <domain includeSubdomains="true">172.16.0.0</domain>
+        <domain includeSubdomains="true">.local</domain>          <!-- mDNS / Bonjour -->
+    </domain-config>
+</network-security-config>
